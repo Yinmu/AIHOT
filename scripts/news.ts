@@ -10,7 +10,7 @@ process.env.AIHOT_NEWS_ONLY="true";
 for(const key of ["FEISHU_CONTENT_PUSH_ENABLED","FEISHU_INTERNAL_ENABLED","INDEXNOW_SUBMIT_ENABLED","JINA_BODY_FALLBACK"])process.env[key]="false";
 const {sql,closeDb}=await import("../packages/backend/src/db.ts");
 const {initNewsSources,collectNewsSource,NEWS_SOURCES}=await import("../packages/backend/src/news/collect.ts");
-const {processNewsArticle,reviewNews,saveNewsDraft,withdrawNews}=await import("../packages/backend/src/news/pipeline.ts");
+const {processNewsArticle,reviewNews,saveNewsDraft,withdrawNews,resolveNews}=await import("../packages/backend/src/news/pipeline.ts");
 const {exportWorldPhysical}=await import("../packages/backend/src/publication/world-physical.ts");
 const {WORLD_PROFILE,WORLD_POLICY_VERSION}=await import("@aihot/industry/world-physical");
 const limit=Number(values.limit);
@@ -33,9 +33,12 @@ try {
   const d=await processNewsArticle(required("id"),{replayReceiptId:receipt});
   print({decisionId:d.id,decision:d.decision,state:d.state,topic:d.topic,replayedReceipt:receipt});
  } else if(command==="list") {
-  print(await sql`SELECT d.id,'news-'||d.id AS item_id,a.id AS article_id,a.url,a.title AS original_title,a.published_at,d.input_revision,d.decision,d.topic,d.state,d.title,d.summary,d.reason_codes FROM news_decisions d JOIN articles a ON a.id=d.article_id WHERE d.profile=${WORLD_PROFILE} AND d.policy=${WORLD_POLICY_VERSION} AND d.input_revision=a.revision ORDER BY d.id DESC LIMIT ${limit}`);
+  print(await sql`SELECT d.id,'news-'||d.id AS item_id,a.id AS article_id,a.url,a.title AS original_title,a.published_at,d.input_revision,d.decision,d.topic,d.state,d.title,d.summary,d.reason_codes,d.resolved_decision,d.resolved_by,d.resolution_reason FROM news_decisions d JOIN articles a ON a.id=d.article_id WHERE d.profile=${WORLD_PROFILE} AND d.policy=${WORLD_POLICY_VERSION} AND d.input_revision=a.revision ORDER BY d.id DESC LIMIT ${limit}`);
  } else if(command==="draft")print(await saveNewsDraft(Number(required("id")),JSON.parse(readFileSync(required("file"),"utf8"))));
- else if(command==="review") {
+ else if(command==="resolve") {
+  if(values.action!=="select"&&values.action!=="reject")throw new Error("resolve requires --action select|reject");
+  print(await resolveNews(Number(required("id")),values.action,required("reviewer"),required("reason")));
+ } else if(command==="review") {
   if(values.action!=="approve"&&values.action!=="reject")throw new Error("invalid --action");
   print(await reviewNews(Number(required("id")),values.action,required("reviewer"),required("reason"),required("event")));
  } else if(command==="withdraw")print(await withdrawNews(required("id"),required("reviewer"),required("reason")));
@@ -46,6 +49,6 @@ try {
   let previous:typeof data.snapshot|undefined;try{if(existsSync(out))previous=JSON.parse(readFileSync(out,"utf8"));}catch{}
   if(previous && JSON.stringify(previous.items)===JSON.stringify(data.snapshot.items))data.snapshot.updatedAt=previous.updatedAt;
   atomic(out,data.snapshot);print({out,items:data.snapshot.items.length,removed:data.removals.ids.length});
- } else if(command==="help")console.log("news: init | collect [--source ID --limit 3] | process --live [--summary --id ID --limit 3] | replay --id ARTICLE --receipt RECEIPT | list | draft --id DECISION --file JSON | review --id DECISION --reviewer NAME --reason TEXT --event KEY [--action approve|reject] | withdraw --id ITEM --reviewer NAME --reason TEXT | export --out FILE");
+ } else if(command==="help")console.log("news: init | collect [--source ID --limit 3] | process --live [--summary --id ID --limit 3] | replay --id ARTICLE --receipt RECEIPT | list | draft --id DECISION --file JSON | resolve --id DECISION --action select|reject --reviewer NAME --reason TEXT | review --id DECISION --reviewer NAME --reason TEXT --event KEY [--action approve|reject] | withdraw --id ITEM --reviewer NAME --reason TEXT | export --out FILE");
  else throw new Error("unknown command");
 } catch(error){console.error(error instanceof Error?error.message:"news command failed");process.exitCode=1;}finally{await closeDb();}

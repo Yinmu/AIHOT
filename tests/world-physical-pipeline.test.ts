@@ -9,7 +9,7 @@ import { collectNewsSource } from "../packages/backend/src/news/collect.ts";
 import { paidRequest } from "@aihot/backend/providers/receipts";
 import { autoReleaseUnknownReceipts } from "@aihot/backend/admin/runs";
 import { response } from "./jev-fixture.ts";
-import { processNewsArticle as processArticle, reviewNews, withdrawNews, saveNewsDraft } from "../packages/backend/src/news/pipeline.ts";
+import { processNewsArticle as processArticle, reviewNews, withdrawNews, saveNewsDraft, resolveNews } from "../packages/backend/src/news/pipeline.ts";
 import { exportWorldPhysical } from "../packages/backend/src/publication/world-physical.ts";
 const processNewsArticle=(id:string)=>processArticle(id,{writeSummary:true});
 const source="news-test-"+tag();let topic="both";
@@ -112,4 +112,20 @@ test("offline receipt replay binds material and policy without credentials or pa
   await assert.rejects(processArticle(a.articleId,{replayReceiptId:receipt.id}),/does not match/);
   assert.equal(provider.hits(),n);
  }finally{config.modelCallsEnabled=true;process.env.TYPESAFE_API_KEY=key;}
+});
+
+test("editorial resolution keeps Jev review immutable and still needs draft and publication review",async()=>{
+ const a=await material();const d=await processArticle(a.articleId);
+ await sql`UPDATE news_decisions SET decision='review',state='review',reason_codes='["uncertain_sig"]' WHERE id=${d.id}`;
+ await assert.rejects(resolveNews(d.id,'select','Codex',''),/invalid/i);
+ await resolveNews(d.id,'select','Codex','Read source: concrete robotics release, attributed claims; keep model uncertainty.');
+ const [row]=await sql`SELECT * FROM news_decisions WHERE id=${d.id}`;assert.equal(row.decision,'review');assert.equal(row.resolved_decision,'select');assert.equal(row.resolved_by,'Codex');
+ await assert.rejects(resolveNews(d.id,'select','Codex','Duplicate resolution'),/not eligible/);
+ let out=await exportWorldPhysical();assert.ok(!out.snapshot.items.some(x=>x.id===`news-${d.id}`));
+ await saveNewsDraft(d.id,{title:'机器人模型发布',summary:'据研究团队发布，该模型支持机器人学习任务。'});
+ await reviewNews(d.id,'approve','Codex','Checked source and summary',tag());out=await exportWorldPhysical();assert.ok(out.snapshot.items.some(x=>x.id===`news-${d.id}`));
+ await sql`UPDATE articles SET revision=revision+1 WHERE id=${a.articleId}`;
+ out=await exportWorldPhysical();assert.ok(!out.snapshot.items.some(x=>x.id===`news-${d.id}`));
+ const b=await material();const bad=await processArticle(b.articleId);await sql`UPDATE news_decisions SET decision='review',state='review',topic='unknown' WHERE id=${bad.id}`;
+ await assert.rejects(resolveNews(bad.id,'select','Codex','No topic evidence'),/not eligible/);
 });

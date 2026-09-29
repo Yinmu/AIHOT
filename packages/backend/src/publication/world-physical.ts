@@ -10,11 +10,11 @@ export async function exportWorldPhysical() {
    SELECT 'news-'||d.id,'system','Approved version lost eligibility'
    FROM news_decisions d JOIN articles a ON a.id=d.article_id JOIN sources s ON s.id=a.source_id LEFT JOIN news_sources n ON n.source_id=a.source_id
    WHERE EXISTS(SELECT 1 FROM news_reviews r WHERE r.decision_id=d.id AND r.action='approve')
-   AND (d.input_revision<>a.revision OR d.profile<>${WORLD_PROFILE} OR d.policy<>${WORLD_POLICY_VERSION} OR d.decision<>'select' OR d.state<>'ready' OR n.allowed IS DISTINCT FROM true OR s.participation_mode<>'editorial') ON CONFLICT DO NOTHING`;
+   AND (d.input_revision<>a.revision OR d.profile<>${WORLD_PROFILE} OR d.policy<>${WORLD_POLICY_VERSION} OR coalesce(d.resolved_decision,d.decision)<>'select' OR d.state<>'ready' OR n.allowed IS DISTINCT FROM true OR s.participation_mode<>'editorial') ON CONFLICT DO NOTHING`;
   const rows=await tx`SELECT 'news-'||d.id AS id,d.topic,d.title,d.summary,s.name AS source,a.url,a.published_at,a.discovered_at,r.created_at AS approved_at
    FROM news_decisions d JOIN articles a ON a.id=d.article_id JOIN sources s ON s.id=a.source_id JOIN news_sources n ON n.source_id=a.source_id
    JOIN LATERAL(SELECT * FROM news_reviews WHERE decision_id=d.id ORDER BY id DESC LIMIT 1) r ON true
-   WHERE d.profile=${WORLD_PROFILE} AND d.policy=${WORLD_POLICY_VERSION} AND d.input_revision=a.revision AND d.decision='select' AND d.state='ready'
+   WHERE d.profile=${WORLD_PROFILE} AND d.policy=${WORLD_POLICY_VERSION} AND d.input_revision=a.revision AND coalesce(d.resolved_decision,d.decision)='select' AND d.state='ready'
    AND d.topic IN ('world-models','physical-ai','both') AND length(d.title)>0 AND length(d.summary)>0 AND n.allowed AND s.participation_mode='editorial'
    AND r.action='approve' AND r.created_at<=now() AND NOT EXISTS(SELECT 1 FROM news_removals m WHERE m.item_id='news-'||d.id)
    ORDER BY coalesce(a.published_at,a.discovered_at) DESC,d.article_id LIMIT 100`;
