@@ -14,3 +14,11 @@ This repository also contains third-party material under its own terms:
 
 The demo sources in industry/sources.json are public feeds of their publishers. Their content belongs
 to them; by default the site shows only a summary and a link to the original.
+
+Fork modifications
+Copyright (c) 2026 Yinmu (https://github.com/Yinmu).
+Jev selection adapter, experimental selection policy, comparison CLI, SelectBench review-state
+support, associated tests and documentation are modifications by Yinmu, released under the MIT
+License included in LICENSE. The original AIHOT copyright and all third-party notices remain.
+Project links: https://github.com/Yinmu/AIHOT and https://cooljev.com
+This independent fork is not endorsed by or affiliated with the upstream author or TypeSafe.

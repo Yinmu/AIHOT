@@ -14,3 +14,18 @@ apps/web/.react-router/
 # Font package unpacked to regenerate the report nameplates (docs/customize.md)
 package/
 fontsource-noto-sans-sc-*.tgz
+
+# Local credentials and operational artifacts (never public source)
+*.env
+*.env.*
+!*.env.example
+credentials/
+secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.log
+*.dump
+*.sql.gz

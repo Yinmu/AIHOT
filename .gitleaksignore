@@ -1,0 +1,6 @@
+# Exact reviewed false positives from the upstream initial commit only.
+# check.yml: disposable CI image-signing test value.
+# source-registry.json: FrontierSWE v2 and BullshitBench public registry IDs, not credentials.
+877d6d5b945659312194d36012a28895caf572a6:.github/workflows/check.yml:generic-api-key:37
+877d6d5b945659312194d36012a28895caf572a6:packages/backend/src/leaderboard/source-registry.json:generic-api-key:412
+877d6d5b945659312194d36012a28895caf572a6:packages/backend/src/leaderboard/source-registry.json:generic-api-key:638

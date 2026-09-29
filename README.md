@@ -1,4 +1,38 @@
-> **Jev selection experiment fork** — 此分支增加 Jev 新闻采纳离线评测，尚未接管正式精选，也未完成人工金标质量验证。使用方法见 [Jev 实验说明](docs/jev-selection.md)。下文保留上游项目介绍与署名。
+# Jev 新闻采纳实验 · by Yinmu
+
+**让 Jev 判断新闻是否值得采纳，让生成模型负责写作。** 这是 [Yinmu](https://github.com/Yinmu) 基于 [数字生命卡兹克的 AIHOT](https://github.com/KKKKhazix/AIHOT) 制作的独立实验分支。
+
+关注我的其他 Jev 实践：**[CoolJev](https://cooljev.com) · [GitHub / Yinmu](https://github.com/Yinmu)**。
+
+## 来源与署名
+
+- **原项目与原作者**：[AIHOT](https://github.com/KKKKhazix/AIHOT)，数字生命卡兹克（[KKKKhazix](https://github.com/KKKKhazix)）。新闻采集、网站、后台、原精选流程、事件归组与日报框架来自上游。
+- **本分支维护与改造**：[Yinmu](https://github.com/Yinmu)，在上游框架上增加 Jev 新闻采纳对比实验。
+- **起始版本**：上游提交 [`44578fa`](https://github.com/KKKKhazix/AIHOT/commit/44578fa11da55f2e863900752653e0c221f6cf70)。本分支为 `codex/jev-news-selection`。
+- 本项目保留上游 [MIT LICENSE](LICENSE)、[NOTICE](NOTICE) 和第三方材料声明。新增改动同样按 MIT 发布。AIHOT 名称和 Logo 不在上游 MIT 授权范围内；下方上游截图仅保留作项目来源介绍，部署自己的站点请使用自己的品牌。
+- 本分支是独立改造，不代表卡兹克、AIHOT 或 TypeSafe 官方出品、合作或背书。新闻内容权利归各信源所有。
+
+## Yinmu 在这个分支做了什么
+
+| 改动 | 作用 |
+|---|---|
+| Jev 原生接口适配 | 使用 `state + questions` 判断新闻，复用回执、预算限制和异常处理 |
+| 结构化采纳判断 | 判断相关性、内容类型、五轴价值与噪声，输出采纳／拒绝／待复核 |
+| 独立对比评测 CLI | 对同一批人工标注样本比较 Jev 与原有模型；保留分歧、信号和回执 |
+| SelectBench 扩展 | 显示及筛选待复核，报告覆盖率，避免将调用失败误记为拒选 |
+| 测试与使用文档 | 提供接口、规则、回执、报告测试及可复现验证记录 |
+
+**当前是离线实验，不接管正式精选，也没有真实模型准确率或成本优势结论。** 摘要、翻译、日报仍使用上游生成模型流程。详见 [使用说明](docs/jev-selection.md)、[验证记录](docs/jev-selection-verification.md) 和 [安全说明](SECURITY.md)。
+
+## 密钥不属于开源代码
+
+仓库只提供空值或明确的测试配置。真实 `TYPESAFE_API_KEY`、`LLM_API_KEY`、数据库密码和其他凭据仅保存在本地环境或部署平台的 Secret 中。不要把 `.env`、日志、数据库、回执或真实评测数据提交到 Git。密钥扫描通过也不能代替人工检查；具体提交前检查见 [SECURITY.md](SECURITY.md)。
+
+---
+
+## 上游项目原始介绍
+
+以下保留原作者介绍、截图和署名，描述的是上游项目，不是对本分支效果的承诺。
 
 <p align="center">
   <picture>
