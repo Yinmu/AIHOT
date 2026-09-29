@@ -1,3 +1,5 @@
+> **Jev selection experiment fork** — 此分支增加 Jev 新闻采纳离线评测，尚未接管正式精选，也未完成人工金标质量验证。使用方法见 [Jev 实验说明](docs/jev-selection.md)。下文保留上游项目介绍与署名。
+
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/banner-dark.png">

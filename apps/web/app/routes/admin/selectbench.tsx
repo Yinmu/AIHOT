@@ -72,7 +72,7 @@ export default function SelectBench({ loaderData }: Route.ComponentProps) {
                   <table className="w-full min-w-[720px] text-[13px]">
                     <thead>
                       <tr className="border-b border-line text-left text-[12px] text-ink-3">
-                        {["模型", "准确率", "精确率", "召回率", "F1", "入选比例", "金标入选", "失败", "平均耗时", "输入/输出 tokens"].map((h) => <th key={h} className="px-3 py-2 font-medium">{h}</th>)}
+                        {["模型", "准确率", "精确率", "召回率", "F1", "入选比例", "金标入选", "覆盖率", "待复核", "失败", "平均耗时", "输入/输出 tokens"].map((h) => <th key={h} className="px-3 py-2 font-medium">{h}</th>)}
                       </tr>
                     </thead>
                     <tbody>
@@ -87,6 +87,8 @@ export default function SelectBench({ loaderData }: Route.ComponentProps) {
                             <td className="num px-3 py-2 font-semibold text-ink">{pct(s.f1)}</td>
                             <td className="num px-3 py-2">{pct(s.selectedRate)}</td>
                             <td className="num px-3 py-2">{pct(s.goldSelectRate)}</td>
+                            <td className="num px-3 py-2">{pct(s.coverage)}</td>
+                            <td className="num px-3 py-2">{s.review ?? 0}</td>
                             <td className="num px-3 py-2">{s.errors ? <span className="text-hot">{s.errors}</span> : 0}</td>
                             <td className="num px-3 py-2">{s.avgLatencyMs ? `${(s.avgLatencyMs / 1000).toFixed(1)}s` : "—"}</td>
                             <td className="num px-3 py-2 text-ink-3">{num(s.tokensIn)} / {num(s.tokensOut)}</td>

@@ -8,7 +8,7 @@ import { bj, num, pct } from "../../features/admin/format";
 import { AdminPage, Badge, Card, Empty, FilterChips, Select } from "../../features/admin/ui";
 
 interface Decision {
-  decision: "select" | "reject" | null;
+  decision: "select" | "reject" | "review" | null;
   score: number | null;
   relevance: string | null;
   category: string | null;
@@ -33,6 +33,7 @@ const GOLD: Record<string, [string, "accent" | "muted" | "info"]> = { select: ["
 function verdict(d: Decision | undefined, gold: string) {
   if (!d) return <span className="text-ink-4">—</span>;
   if (d.decision === null) return <Badge tone="bad" title={d.error ?? undefined}>失败</Badge>;
+  if (d.decision === "review") return <Badge tone="info" title={d.reason ?? undefined}>待复核</Badge>;
   const right = gold === "either" || d.decision === gold;
   return (
     <span className="inline-flex items-center gap-1.5">
@@ -65,8 +66,8 @@ export default function SelectBenchRun({ loaderData: d }: Route.ComponentProps) 
             <button key={m} onClick={() => set("model", m)} className={`rounded-panel p-4 text-left ring-1 transition-colors ${m === model ? "bg-accent-softer ring-accent/40" : "bg-surface ring-line hover:bg-bg-sunk/60"}`}>
               <div className="text-[13.5px] font-semibold text-ink">{m}</div>
               <div className="num mt-1.5 text-[22px] font-semibold tracking-tight text-ink">F1 {pct(s.f1)}</div>
-              <div className="num mt-0.5 text-[12px] text-ink-3">准确 {pct(s.accuracy)} · 精确 {pct(s.precision)} · 召回 {pct(s.recall)}</div>
-              <div className="num mt-0.5 text-[12px] text-ink-4">误选 {s.fp ?? "—"} · 漏选 {s.fn ?? "—"} · 失败 {s.errors ?? 0}</div>
+              <div className="num mt-0.5 text-[12px] text-ink-3">覆盖 {pct(s.coverage)} · 准确 {pct(s.accuracy)} · 精确 {pct(s.precision)} · 召回 {pct(s.recall)}</div>
+              <div className="num mt-0.5 text-[12px] text-ink-4">误选 {s.fp ?? "—"} · 漏选 {s.fn ?? "—"} · 待复核 {s.review ?? 0} · 失败 {s.errors ?? 0}</div>
             </button>
           );
         })}
@@ -81,6 +82,7 @@ export default function SelectBenchRun({ loaderData: d }: Route.ComponentProps) 
             { value: "tp", label: "选对" },
             { value: "tn", label: "正确不选" },
             { value: "either", label: "两可" },
+            { value: "review", label: "待复核" },
             { value: "error", label: "失败" },
           ]}
         />
