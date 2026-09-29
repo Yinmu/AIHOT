@@ -1,5 +1,5 @@
 // Experimental policy, calibrated independently from the original two-call selector.
-export const JEV_POLICY_VERSION = "jev-five-axis-v1";
+export const JEV_POLICY_VERSION = "jev-five-axis-v2-six-level";
 export const JEV_MODEL = "jev-1.13.0";
 export const MIN_CONFIDENCE = 0.8;
 export const WEIGHTS = {
@@ -17,6 +17,13 @@ export const AXES = {
   reson: "共振面：多少持续关注 AI 的普通重度用户、产品经理、创业者和轻度开发者能理解为何与自己有关。",
   act: "可用性：能否立即使用、学习、调整选择或迁移做法。纯新闻可低分，不抵消实质份量。",
 } as const;
+export const SCORE_LEVELS:Record<keyof typeof AXES,string[]> = {
+ sig:["没有可确认的实质事件。","仅有预告、例行维护或微小局部变化。","明确但影响有限的方法或能力改进。","对一个实际任务或研究方向有重要可验证进展。","对目标领域多个任务或实践产生明显影响。","改变目标领域能力边界或形成广泛采用的重要节点。"],
+ nov:["没有新增信息，仅重复旧说法。","换包装或补充少量背景。","增加具体细节，但主要结论已知。","提出清晰的新方法、数据或发现。","新增结果改变了已有选择或判断。","有充分材料支持的突破性新事实或新能力。"],
+ cred:["核心主张无材料支持或自相矛盾。","仅有宣传形容词，没有具体对象和动作。","有具体声明，但方法或结果依据不足。","原始公告或方法细节支持所述事件。","提供可检查的数据、代码、评测或实际部署细节。","材料中有完整可复查的方法与多方面证据支持核心结论。"],
+ reson:["与目标读者无关。","仅对极个别场景有意义。","对一个小范围细分任务有意义。","对目标领域的一类研究或开发工作有明确意义。","对目标领域多类读者的判断或实践有意义。","影响目标领域普遍面对的关键能力或问题。"],
+ act:["没有可使用或可学习的信息。","只知道将来可能发生某事。","有初步思路，但缺少复用条件。","有可学习的方法、评测或明确的实践启发。","有公开工具、代码、数据或足够复用的操作细节。","已有完整可复现资源并能直接用于目标任务。"],
+};
 export const CAPS = {
   customer_pr: { instructions: "是否仅为客户案例/合作 PR，且没有明确任务、规模、成本、时间、质量或可迁移方法？", limits: {sig:4} },
   routine_update: { instructions: "是否仅为例行小版本、地区补齐、平台上架、接入另一模型、窄 SDK 支持或修复？广泛用户能力升级或通用 Harness 正式开源不属于此类。", limits: {sig:3} },

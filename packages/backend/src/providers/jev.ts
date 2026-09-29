@@ -1,4 +1,4 @@
-// Native TypeSafe transport. Only the offline evaluation CLI uses this provider.
+// Native TypeSafe transport shared by offline evaluation and the headless topical pipeline.
 import { config, credential } from '../config.ts';
 import { sql } from '../db.ts';
 import { sha256, stableJson } from '../lib/ids.ts';
@@ -6,6 +6,9 @@ import { paidRequest, ProviderRejectedError, rejectReceivedResponse } from './re
 import { buildJevRequest, validateJevResponse, decideJev } from '../editorial/jev-selection.ts';
 import type { AnalyzeInputArticle } from '../editorial/input.ts';
 import { JEV_POLICY_VERSION, JEV_MODEL } from '@aihot/industry/jev-selection';
+
+import { WORLD_QUESTIONS, decideWorldPhysical } from '../editorial/world-physical.ts';
+import { WORLD_POLICY_VERSION, WORLD_PROFILE } from '@aihot/industry/world-physical';
 
 const ENDPOINT='https://api.typesafe.ai/v1/systemone';
 function endpoint():string {
@@ -23,17 +26,27 @@ async function boundedBody(r:Response):Promise<string> {
   try {while(true) {const {done,value}=await reader.read();if(done)break;bytes+=value.length;if(bytes>max){await reader.cancel();throw new Error('jev_response_too_large');}chunks.push(value);}} finally {reader.releaseLock();}
   return Buffer.concat(chunks).toString('utf8');
 }
-export async function evaluateJev(article:AnalyzeInputArticle,opts:{timeoutMs?:number}={}) {
+export async function evaluateJev(article:AnalyzeInputArticle,opts:{timeoutMs?:number;profile?:'world-physical';replayReceiptId?:number}={}) {
+  const topical=opts.profile==='world-physical';
+  const policy=topical?WORLD_POLICY_VERSION:JEV_POLICY_VERSION;
+  const request=buildJevRequest(article,topical?WORLD_QUESTIONS:undefined);
+  if(opts.replayReceiptId!==undefined) {
+    if(!Number.isSafeInteger(opts.replayReceiptId)||opts.replayReceiptId<1)throw new Error('invalid replay receipt');
+    const [saved]=await sql`SELECT * FROM receipts WHERE id=${opts.replayReceiptId}`;
+    if(!saved||saved.service!=='typesafe'||saved.model!==JEV_MODEL||saved.purpose!==(topical?'world_physical_selection':'jev_selection_eval')||saved.subject!==`article:${article.id}@${article.revision}`||saved.request?.policyVersion!==policy||saved.request?.requestHash!==sha256(stableJson(request))||!saved.response||!['failed','received','completed'].includes(saved.status))throw new Error('receipt does not match current material and policy');
+    const r=validateJevResponse(saved.response,topical?WORLD_QUESTIONS:undefined);
+    // Preserve the original transport/validation history; the decision records this receipt link.
+    return {...(topical?decideWorldPhysical(article,r):{...decideJev(article,r),topic:null}),profileId:topical?WORLD_PROFILE:"general",receiptId:saved.id as number,reused:true,model:JEV_MODEL,policyVersion:policy,usage:r.usage,latencyMs:0};
+  }
   if(!config.modelCallsEnabled) throw new Error('Model calls are disabled');
   const url=endpoint(),key=credential('models','TYPESAFE_API_KEY');
   if(!key) throw new Error('TYPESAFE_API_KEY is not configured');
-  const request=buildJevRequest(article);
   // Existing receipt infrastructure treats an absent budget as unlimited: explicitly disallow it here.
   const [budget]=await sql`SELECT service FROM budgets WHERE service='typesafe'`;
   if(!budget) throw new Error('missing typesafe budget; apply database migrations');
-  const receipt=await paidRequest({service:'typesafe',model:JEV_MODEL,purpose:'jev_selection_eval',subject:`article:${article.id}@${article.revision}`,
-    identity:{endpoint:url,policy:JEV_POLICY_VERSION,request},
-    requestSummary:{policyVersion:JEV_POLICY_VERSION,requestHash:sha256(stableJson(request)),bodyChars:request.state.body.length},
+  const receipt=await paidRequest({service:'typesafe',model:JEV_MODEL,purpose:topical?'world_physical_selection':'jev_selection_eval',subject:`article:${article.id}@${article.revision}`,
+    identity:{endpoint:url,policy,request},
+    requestSummary:{policyVersion:policy,requestHash:sha256(stableJson(request)),bodyChars:request.state.body.length},
   },async()=>{
     const start=Date.now();
     let r:Response;
@@ -54,9 +67,9 @@ export async function evaluateJev(article:AnalyzeInputArticle,opts:{timeoutMs?:n
     return {response:{...raw,_latencyMs:Date.now()-start},requestId:r.headers.get('x-request-id'),usage,cost:null};
   });
   let r;
-  try {r=validateJevResponse(receipt.response);} catch {
+  try {r=validateJevResponse(receipt.response,topical?WORLD_QUESTIONS:undefined);} catch {
     await rejectReceivedResponse(receipt.receiptId,'invalid Jev response');
     throw new Error('invalid Jev response');
   }
-  return {...decideJev(article,r),receiptId:receipt.receiptId,reused:receipt.reused,model:JEV_MODEL,policyVersion:JEV_POLICY_VERSION,usage:r.usage,latencyMs:Number((receipt.response as {_latencyMs?:number})._latencyMs??0)};
+  return {...(topical?decideWorldPhysical(article,r):{...decideJev(article,r),topic:null}),profileId:topical?WORLD_PROFILE:"general",receiptId:receipt.receiptId,reused:receipt.reused,model:JEV_MODEL,policyVersion:policy,usage:r.usage,latencyMs:Number((receipt.response as {_latencyMs?:number})._latencyMs??0)};
 }

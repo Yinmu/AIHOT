@@ -1,4 +1,4 @@
-# Jev 新闻采纳实验 · by Yinmu
+# Jev 新闻采纳与专题新闻 · by Yinmu
 
 **让 Jev 判断新闻是否值得采纳，让生成模型负责写作。** 这是 [Yinmu](https://github.com/Yinmu) 基于 [数字生命卡兹克的 AIHOT](https://github.com/KKKKhazix/AIHOT) 制作的独立实验分支。
 
@@ -7,7 +7,7 @@
 ## 来源与署名
 
 - **原项目与原作者**：[AIHOT](https://github.com/KKKKhazix/AIHOT)，数字生命卡兹克（[KKKKhazix](https://github.com/KKKKhazix)）。新闻采集、网站、后台、原精选流程、事件归组与日报框架来自上游。
-- **本分支维护与改造**：[Yinmu](https://github.com/Yinmu)，在上游框架上增加 Jev 新闻采纳对比实验。
+- **本分支维护与改造**：[Yinmu](https://github.com/Yinmu)，在上游框架上增加 Jev 新闻采纳实验和面向 CoolJev 的世界模型 / 物理 AI 新闻后台。
 - **起始版本**：上游提交 [`44578fa`](https://github.com/KKKKhazix/AIHOT/commit/44578fa11da55f2e863900752653e0c221f6cf70)。本分支为 `codex/jev-news-selection`。
 - 本项目保留上游 [MIT LICENSE](LICENSE)、[NOTICE](NOTICE) 和第三方材料声明。新增改动同样按 MIT 发布。AIHOT 名称和 Logo 不在上游 MIT 授权范围内；下方上游截图仅保留作项目来源介绍，部署自己的站点请使用自己的品牌。
 - 本分支是独立改造，不代表卡兹克、AIHOT 或 TypeSafe 官方出品、合作或背书。新闻内容权利归各信源所有。
@@ -20,9 +20,11 @@
 | 结构化采纳判断 | 判断相关性、内容类型、五轴价值与噪声，输出采纳／拒绝／待复核 |
 | 独立对比评测 CLI | 对同一批人工标注样本比较 Jev 与原有模型；保留分歧、信号和回执 |
 | SelectBench 扩展 | 显示及筛选待复核，报告覆盖率，避免将调用失败误记为拒选 |
+| 世界模型 / 物理 AI 专题 | 独立 Jev 规则，按需采集、人工摘要草稿、审核和版本化公开快照 |
+| 安全发布与撤回 | 来源和材料版本约束、回执复用、撤回清单，供 CoolJev 静态页面导入 |
 | 测试与使用文档 | 提供接口、规则、回执、报告测试及可复现验证记录 |
 
-**当前是离线实验，不接管正式精选，也没有真实模型准确率或成本优势结论。** 摘要、翻译、日报仍使用上游生成模型流程。详见 [使用说明](docs/jev-selection.md)、[验证记录](docs/jev-selection-verification.md) 和 [安全说明](SECURITY.md)。
+**新增了供 CoolJev 使用的按需专题后台，默认 Jev 判断后等待人工摘要和审核；尚未启用定时发布，也没有真实模型准确率或成本优势结论。** 泛 AI 离线实验与上游精选仍独立保留。专题操作见 [世界模型与物理 AI 使用说明](docs/world-physical-news.md)；泛 AI 实验详见 [使用说明](docs/jev-selection.md)、[验证记录](docs/jev-selection-verification.md) 和 [安全说明](SECURITY.md)。
 
 ## 密钥不属于开源代码
 

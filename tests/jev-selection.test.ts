@@ -59,3 +59,11 @@ test("gold rejects empty, duplicate, invalid labels and tiers before requests", 
   assert.equal(parseGold(JSON.stringify(row)).length,1);
   for(const text of ["",JSON.stringify(row)+"\n"+JSON.stringify(row),JSON.stringify({...row,gold:{decision:"pending"}}),JSON.stringify({...row,sourceFacts:{sourceKind:"rss",sourceTier:"typo"}})]) assert.throws(()=>parseGold(text));
 });
+
+test("rounded probabilities admit only a feasible normalized score expectation",()=>{
+ const r=response();
+ r.answers.nov={type:"score",score:3.49,confidence:.63,probabilities:{0:0,1:0,2:.02,3:.68,4:.07,5:.22}};
+ assert.doesNotThrow(()=>validateJevResponse(r));
+ r.answers.nov.score=3.8;assert.throws(()=>validateJevResponse(r),/expectation/);
+ r.answers.nov.score=3.49;r.answers.nov.probabilities[5]=.1;assert.throws(()=>validateJevResponse(r),/sum/);
+});

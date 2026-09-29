@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AXES, CAPS, CATEGORY_CRITERIA, JEV_MODEL, JEV_RULES, MIN_CONFIDENCE, WEIGHTS } from "@aihot/industry/jev-selection";
+import { AXES, CAPS, CATEGORY_CRITERIA, JEV_MODEL, JEV_RULES, MIN_CONFIDENCE, WEIGHTS, SCORE_LEVELS } from "@aihot/industry/jev-selection";
 import { SELECTION } from "@aihot/industry/selection";
 import type { AnalyzeInputArticle } from "./input.ts";
 
@@ -11,18 +11,19 @@ export type Question = ChoiceQuestion | ScoreQuestion | NoulQuestion;
 export const JEV_QUESTIONS: Record<string,Question> = {
   relevance: {type:"choice", instructions:JEV_RULES+" 做宽召回相关性预筛，不做质量评分。公司名、智能、GPU、MCP 单个词不自动代表 AI。BLOCK 需要明确无关证据；不认识的名称不能算无关。", criteria:{PASS:"明确涉及 AI 技术、模型、Agent、评测、工具、生成作品、机器人、AI 经营或社会影响。",BLOCK:"材料充分且只有普通科技、经营或日常，AI 只在身份标签或空泛广告词中。",UNKNOWN:"只有代词、表情、缺失媒体、无法识别名称或材料不足，无法确认。"}},
   category: {type:"choice", instructions:JEV_RULES+"选择当前最强且有正文支持的事件类型。",criteria:CATEGORY_CRITERIA},
-  ...Object.fromEntries(Object.entries(AXES).map(([key,description])=>[key,{type:"score" as const,instructions:JEV_RULES+description+" 按 0 到 10 评价此轴，0 为无此价值，5 为中等，10 为极高；不要迎合门槛。",criteria:Array.from({length:11},(_,i)=>`${i} / 10：${description}`)}])),
+  ...Object.fromEntries(Object.entries(AXES).map(([key,description])=>[key,{type:"score" as const,instructions:JEV_RULES+description+" 选择原文证据最匹配的等级，不迎合门槛。",criteria:SCORE_LEVELS[key as keyof typeof AXES]}])),
   ...Object.fromEntries(Object.entries(CAPS).map(([key,cap])=>[key,{type:"noul" as const,instructions:JEV_RULES+cap.instructions}])),
 };
 export function materialBody(a:AnalyzeInputArticle):string {
   return a.xPost ? [String(a.xPost.text??""), a.xPost.quoted?.text ? `[引用] ${a.xPost.quoted.text}` : ""].filter(Boolean).join("\n\n") : (a.bodyText||a.excerpt||"");
 }
-export function buildJevRequest(a:AnalyzeInputArticle) {
+export function buildJevRequest(a:AnalyzeInputArticle, questions:Record<string,Question>=JEV_QUESTIONS) {
+  for(const q of Object.values(questions))if(q.type==="score"&&(q.criteria.length<2||q.criteria.length>10))throw new Error("invalid score criteria: API accepts 2..10 levels");
   const body=materialBody(a);
   if(!a.title.trim()) throw new Error("missing title");
   // Do not silently truncate evidence and then judge a different article than the baseline.
   if(body.length>30000 || a.title.length>2000) throw new Error("material_too_long");
-  return {model:JEV_MODEL,state:{title:a.title,body,publishedAt:a.publishedAt?.toISOString()??null},questions:JEV_QUESTIONS};
+  return {model:JEV_MODEL,state:{title:a.title,body,publishedAt:a.publishedAt?.toISOString()??null},questions};
 }
 const probability=z.number().finite().min(0).max(1);
 const choice=z.object({type:z.literal("choice"),choice:z.string(),confidence:probability,probabilities:z.record(z.string(),probability)});
@@ -30,23 +31,34 @@ const score=z.object({type:z.literal("score"),score:z.number().finite().min(0).m
 const noul=z.object({type:z.literal("noul"),noul:probability});
 const responseSchema=z.object({model:z.literal(JEV_MODEL),answers:z.record(z.string(),z.discriminatedUnion("type",[choice,score,noul])),usage:z.object({input_tokens:z.number().int().nonnegative(),output_tokens:z.number().int().nonnegative()})});
 export type JevResponse=z.infer<typeof responseSchema>;
-export function validateJevResponse(raw:unknown):JevResponse {
+export function validateJevResponse(raw:unknown, questions:Record<string,Question>=JEV_QUESTIONS):JevResponse {
   const r=responseSchema.parse(raw);
-  if(Object.keys(r.answers).sort().join()!==Object.keys(JEV_QUESTIONS).sort().join()) throw new Error("invalid answer keys");
-  for(const [key,q] of Object.entries(JEV_QUESTIONS)) {
+  if(Object.keys(r.answers).sort().join()!==Object.keys(questions).sort().join()) throw new Error("invalid answer keys");
+  for(const [key,q] of Object.entries(questions)) {
     const a=r.answers[key];
     if(a.type!==q.type) throw new Error("invalid answer type");
     if(a.type==="noul") continue;
-    const keys=q.type==="choice"?Object.keys(q.criteria):Array.from({length:11},(_,i)=>String(i));
+    const keys=q.type==="choice"?Object.keys(q.criteria):Array.from({length:q.type==="score"?q.criteria.length:0},(_,i)=>String(i));
     if(Object.keys(a.probabilities).sort().join()!==keys.sort().join()) throw new Error("invalid probability keys");
     const ps=Object.values(a.probabilities);
-    if(Math.abs(ps.reduce((s,p)=>s+p,0)-1)>0.01) throw new Error("invalid probability sum");
+    // The service rounds probabilities and expectations to two decimals independently.
+    // Find feasible expectations over normalized distributions within those rounding intervals.
+    const intervals=Object.entries(a.probabilities).map(([k,p])=>({index:Number(k),lo:Math.max(0,p-.005),hi:Math.min(1,p+.005)}));
+    const lower=intervals.reduce((s,p)=>s+p.lo,0),upper=intervals.reduce((s,p)=>s+p.hi,0);
+    if(lower>1+1e-9||upper<1-1e-9)throw new Error("invalid probability sum");
+    const expectation=(descending:boolean)=>{
+      let remaining=1-lower,total=intervals.reduce((s,p)=>s+p.index*p.lo,0);
+      for(const p of [...intervals].sort((a,b)=>descending?b.index-a.index:a.index-b.index)){
+        const added=Math.min(remaining,p.hi-p.lo);total+=added*p.index;remaining-=added;
+      }
+      return total;
+    };
     if(a.type==="choice" && (!Object.hasOwn(a.probabilities,a.choice)||a.probabilities[a.choice]+1e-6<Math.max(...ps))) throw new Error("invalid choice");
-    if(a.type==="score" && Math.abs(a.score-Object.entries(a.probabilities).reduce((s,[k,p])=>s+Number(k)*p,0))>0.02) throw new Error("invalid score expectation");
+    if(a.type==="score" && (a.score<0||a.score>keys.length-1||a.score<expectation(false)-.005-1e-9||a.score>expectation(true)+.005+1e-9)) throw new Error("invalid score expectation");
   }
   return r;
 }
-export function decideJev(article:AnalyzeInputArticle,r:JevResponse) {
+export function decideJev(article:AnalyzeInputArticle,r:JevResponse, caps:Record<string,{instructions:string;limits:Record<string,number>}>=CAPS) {
   const threshold=SELECTION.thresholds[article.source.tier]??null;
   const signals=r.answers;
   const rel=signals.relevance as z.infer<typeof choice>;
@@ -61,10 +73,11 @@ export function decideJev(article:AnalyzeInputArticle,r:JevResponse) {
   for(const key of Object.keys(AXES)) {
     const a=signals[key] as z.infer<typeof score>;
     if(a.confidence<MIN_CONFIDENCE) return result("review",null,[`uncertain_${key}`]);
-    axes[key]=a.score;
+    // API Score is a level index. Normalize its expectation to the policy's 0..10 scale before caps/weights.
+    axes[key]=a.score*10/(Object.keys(a.probabilities).length-1);
   }
   const reasons:string[]=[];
-  for(const [key,cap] of Object.entries(CAPS)) {
+  for(const [key,cap] of Object.entries(caps)) {
     const p=(signals[key] as z.infer<typeof noul>).noul;
     if(p>0.2 && p<0.8) return result("review",null,[`uncertain_${key}`]);
     if(p>=0.8) {

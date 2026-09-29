@@ -1,6 +1,7 @@
 {
   "extends": "../tsconfig.base.json",
   "include": [
-    "eval-jev-selection.ts"
+    "eval-jev-selection.ts",
+    "news.ts"
   ]
 }

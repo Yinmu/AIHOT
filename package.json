@@ -17,7 +17,8 @@
     "dev:web": "npm run dev -w @aihot/web",
     "typecheck": "tsc -p packages/contracts && tsc -p packages/backend && tsc -p apps/api && tsc -p apps/worker && tsc -p tests && tsc -p scripts/tsconfig.jev.json && npm run typecheck -w @aihot/web",
     "test": "node --test --test-concurrency=1 --test-timeout=120000 \"tests/*.test.ts\"",
-    "eval:jev": "node --env-file-if-exists=.env scripts/eval-jev-selection.ts"
+    "eval:jev": "node --env-file-if-exists=.env scripts/eval-jev-selection.ts",
+    "news": "node --env-file-if-exists=.env.news.local scripts/news.ts"
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "2.1.0",

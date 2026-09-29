@@ -12,6 +12,8 @@ import { registerSchedules } from "./schedules.ts";
 import { ensureContentTargets } from "@aihot/backend/notify/deliver";
 import { startHeartbeat } from "@aihot/backend/operations/heartbeat";
 
+if (process.env.AIHOT_NEWS_ONLY === "true") throw new Error("Headless news mode: use scripts/news.ts; the general worker is disabled.");
+
 assertProductionSecrets([["auth", "IMG_PROXY_SIGN_SECRET"]]);
 
 await ensureContentTargets();

@@ -120,7 +120,7 @@ const AUTO_RELEASE_NOTE = "自动放行：结果未知超过 30 分钟，未核�
 export async function autoReleaseUnknownReceipts(now = Date.now()) {
   const rows = await sql<{ id: number }[]>`
     SELECT r.id FROM receipts r
-    WHERE r.status = 'unknown' AND r.updated_at < ${new Date(now - AUTO_RELEASE_AFTER_MS)}
+    WHERE r.status = 'unknown' AND r.purpose NOT IN ('world_physical_selection', 'world_physical_summary') AND r.updated_at < ${new Date(now - AUTO_RELEASE_AFTER_MS)}
       AND NOT EXISTS (SELECT 1 FROM receipt_attempts a WHERE a.receipt_id = r.id AND a.error LIKE ${AUTO_RELEASE_NOTE + "%"})
     ORDER BY r.id LIMIT 200`;
   let released = 0;
